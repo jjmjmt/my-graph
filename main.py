@@ -67,7 +67,7 @@ else:
 
 # 💡 사용자가 직접 입력하는 구역 (텍스트 입력창)
 user_insight = st.text_input(
-    label="💡 이 그래프로 알 수 있는 것 
+    label="💡 이 그래프로 알 수 있는 것:
     value="내가 알아낸것은, ", 
     placeholder="여기에 그래프를 보고 분석한 내용을 입력하세요."
 )
