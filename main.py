@@ -37,7 +37,6 @@ st.markdown("선택한 영화의 일별 관객수 변화를 시간 순서대로 
 # 영화 선택 드롭다운 (가나다순 정렬)
 movie_list = sorted(df['영화명'].unique())
 selected_movie = st.selectbox("🎥 분석할 영화를 선택하세요", movie_list)
-
 # 선택한 영화 데이터 필터링 및 날짜순 정렬
 movie_df = df[df['영화명'] == selected_movie].sort_values('날짜')
 
@@ -67,7 +66,7 @@ else:
 
 # 💡 사용자가 직접 입력하는 구역 (텍스트 입력창)
 user_insight = st.text_input(
-    label="💡 이 그래프로 알 수 있는 것:
+
     value="내가 알아낸것은, ", 
     placeholder="여기에 그래프를 보고 분석한 내용을 입력하세요."
 )
