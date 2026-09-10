@@ -14,7 +14,7 @@ st.markdown("---")
 # 2. 데이터 불러오기 및 전처리
 @st.cache_data
 def load_data():
-    url = "https://raw.githubusercontent.com/greatsong/modudata/main/data/kobis_daily.csv"
+    url = "https://githubusercontent.com"
     df = pd.read_csv(url)
     
     # '날짜' 열을 문자열로 바꾼 뒤 진짜 날짜형(datetime)으로 변환
@@ -65,8 +65,12 @@ if not movie_df.empty:
 else:
     st.info("해당 영화의 데이터가 없습니다.")
 
-# 인사이트 기록 구역
-st.info("💡 **이 그래프로 알 수 있는 것:**여기에 그래프를 보고 발견한 유의미한 분석 내용을 한 문장으로 적어주세요.")
+# 💡 사용자가 직접 입력하는 구역 (텍스트 입력창)
+user_insight = st.text_input(
+    label="💡 이 그래프로 알 수 있는 것:, 
+    value="내가 알아낸것은, ", 
+    placeholder="여기에 그래프를 보고 분석한 내용을 입력하세요."
+)
 
 
 # ==========================================
