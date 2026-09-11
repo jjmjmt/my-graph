@@ -89,4 +89,54 @@ def main():
         )
 
     st.markdown("---")
+    # ==========================================
+    # 구역 2: 기간 내 관객수 TOP 5 영화 비교
+    # ==========================================
+    st.header("2. 관객수 TOP 5 영화의 일일 관객수 비교")
+
+    # 전체 기간 동안 일관객 합계가 가장 높은 영화 상위 5개 추출
+    top5_movies = (
+        df.groupby("영화명")["일관객"]
+        .sum()
+        .nlargest(5)
+        .index.tolist()
+    )
+
+    # 상위 5개 영화 데이터만 필터링 후 날짜순 정렬
+    top5_df = df[df["영화명"].isin(top5_movies)].sort_values("날짜")
+
+    # Plotly 다중 선 그래프 생성 (color 옵션으로 영화별 구분)
+    fig2 = px.line(
+        top5_df,
+        x="날짜",
+        y="일관객",
+        color="영화명",
+        title="기간 내 관객수 TOP 5 영화의 일일 관객수 추이",
+        labels={
+            "날짜": "날짜",
+            "일관객": "일일 관객수(명)",
+            "영화명": "영화 제목",
+        },
+    )
+
+    # 마우스오버 툴팁 포맷 및 레이아웃 설정
+    fig2.update_traces(
+        hovertemplate="<b>%{fullData.name}</b><br>날짜: %{x|%Y-%m-%d}<br>관객수: %{y:,}명<extra></extra>"
+    )
+
+    fig2.update_layout(
+        xaxis_title="날짜",
+        yaxis_title="관객수(명)",
+        hovermode="x unified",
+        legend_title_text="영화 제목 (클릭 시 켜기/끄기)",
+    )
+
+    # Streamlit 화면에 그래프 출력
+    st.plotly_chart(fig2, use_container_width=True)
+
+    # 인사이트 문구 작성 영역
+    st.info(
+        "💡 **이 그래프로 알 수 있는 것**\n\n"
+        "여기에 분석 내용을 작성하세요. (예: TOP 5 영화들의 흥행 시기가 겹치는지, 최전성기 관객수 차이는 어느 정도인지 등)"
+    )
 
