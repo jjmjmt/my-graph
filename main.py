@@ -256,7 +256,7 @@ def main():
   st.markdown("---")
 
     # ==========================================
-    # 구역 5: 월×요일별 일관객 합계 (히트맵 개선)
+    # 구역 5: 월×요일별 일관객 합계 (히트맵)
     # ==========================================
     st.header("5. 월 및 요일별 관객수 분포")
 
@@ -294,15 +294,13 @@ def main():
     ]
     heatmap_data = heatmap_data.reindex(columns=weekday_order)
 
-    # Plotly 히트맵 생성
-    # - color_continuous_scale: 'YlGnBu' (노랑-초록-파랑) 또는 'Plasma', 'Viridis', 'Cividis' 등 사용 가능
-    # - text_auto: 셀 내부 숫자 표시 (단위가 크므로 간결하게 표시하려면 생략 가능)
+    # Plotly 히트맵 생성 (YlGnBu 색상 적용)
     fig5 = px.imshow(
         heatmap_data,
         labels=dict(x="요일", y="월", color="총 관객수(명)"),
         x=weekday_order,
         y=[f"{m}월" for m in heatmap_data.index],
-        color_continuous_scale="YlGnBu",  # 🎨 시인성이 뛰어난 YlGnBu 컬러스케일 적용
+        color_continuous_scale="YlGnBu",
         title="월 및 요일별 일관객 합계 히트맵",
         aspect="auto",
     )
@@ -310,7 +308,7 @@ def main():
     # Hover 툴팁 및 그래프 그리드 선 개선
     fig5.update_traces(
         hovertemplate="<b>%{y} %{x}</b><br>총 관객수: %{z:,}명<extra></extra>",
-        xgap=2,  # 타일 사이 간격 추가 (선명도 향상)
+        xgap=2,
         ygap=2,
     )
 
@@ -319,7 +317,7 @@ def main():
         yaxis_title="월",
         coloraxis_colorbar=dict(
             title="총 관객수(명)",
-            tickformat=",d",  # 색상 범례 숫자에 천 단위 쉼표 추가
+            tickformat=",d",
         ),
     )
 
@@ -330,3 +328,7 @@ def main():
         "💡 **이 그래프로 알 수 있는 것**\n\n"
         "여기에 분석 내용을 작성하세요. (예: 특정 월의 주말 집중도, 평일 관객수가 가장 높은 달 등)"
     )
+
+
+if __name__ == "__main__":
+    main()
