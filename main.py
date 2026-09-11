@@ -1,138 +1,104 @@
-import datetime
-import requests
 import pandas as pd
-import pytz
+import plotly.express as px
 import streamlit as st
 
-# 페이지 기본 설정
+# 페이지 기본 설정 (와이드 레이아웃 적용)
 st.set_page_config(
-    page_title="어제 박스오피스 TOP 10", page_icon="🎬", layout="wide"
+    page_title="영화 데이터 그래프 도감 1 - 시간", page_icon="🎬", layout="wide"
 )
 
 
-# API 데이터를 요청하고 캐싱하는 함수 (TTL: 3600초 = 1시간)
-@st.cache_data(ttl=3600)
-def fetch_box_office_data(api_key, target_date):
-    """KOBIS API에서 박스오피스 데이터를 가져오는 함수"""
-    url = "https://www.kobis.or.kr/kobisopenapi/webservice/rest/boxoffice/searchDailyBoxOfficeList.json"
-    params = {"key": api_key, "targetDt": target_date}
+# 데이터 로드 및 전처리 (캐싱을 통한 성능 최적화)
+@st.cache_data
+def load_data():
+    """GitHub에서 박스오피스 CSV 데이터를 불러오고 날짜 형식을 변환하는 함수"""
+    url = "https://raw.githubusercontent.com/greatsong/modudata/main/data/kobis_daily.csv"
 
-    try:
-        response = requests.get(url, params=params, timeout=10)
-        # HTTP 응답 코드 확인
-        if response.status_code != 200:
-            return None, f"서버 응답 오류가 발생했습니다. (상태 코드: {response.status_code})"
+    # CSV 데이터 읽기 (날짜 열을 문자열로 읽어서 처리)
+    df = pd.read_csv(url, dtype={"날짜": str, "영화코드": str})
 
-        data = response.json()
+    # 날짜 열(YYYYMMDD 8자리 문자열)을 datetime 객체로 변환
+    df["날짜"] = pd.to_datetime(df["날짜"], format="%Y%m%d")
 
-        # 인증키 오류 등 API 내부 오류(faultInfo) 처리
-        if "faultInfo" in data:
-            message = data["faultInfo"].get(
-                "message", "인증키 오류가 발생했습니다."
-            )
-            return (
-                None,
-                f"API 오류: {message}\n`secrets.toml`의 KOBIS_KEY를 확인해 주세요.",
-            )
-
-        # 박스오피스 데이터 추출
-        box_office_result = data.get("boxOfficeResult", {})
-        movie_list = box_office_result.get("dailyBoxOfficeList", [])
-
-        # 영화 목록이 비어있는 경우
-        if not movie_list:
-            return None, "해당 날짜의 박스오피스 데이터가 비어 있습니다."
-
-        return movie_list, None
-
-    except requests.exceptions.RequestException as e:
-        return None, f"네트워크 요청 중 오류가 발생했습니다: {e}"
+    return df
 
 
 def main():
-    st.title("🎬 어제 일별 박스오피스 TOP 10")
-
-    # 1. secrets에서 API 키 불러오기
-    if "KOBIS_KEY" not in st.secrets:
-        st.error(
-            "🔑 `KOBIS_KEY`가 설정되지 않았습니다.\n\n"
-            "Streamlit Cloud의 **Settings > Secrets**에서 `KOBIS_KEY`를 등록해 주세요."
-        )
-        return
-
-    api_key = st.secrets["KOBIS_KEY"]
-
-    # 2. 한국 시간(KST) 기준 '어제' 날짜 계산 (YYYYMMDD 형식)
-    kst_timezone = pytz.timezone("Asia/Seoul")
-    today_kst = datetime.datetime.now(kst_timezone).date()
-    yesterday_kst = today_kst - datetime.timedelta(days=1)
-    target_date_str = yesterday_kst.strftime("%Y%m%d")
-    display_date_str = yesterday_kst.strftime("%Y년 %m월 %d일")
-
-    st.caption(f"📅 기준일: {display_date_str}")
-
-    # 3. 데이터 가져오기
-    movie_list, error_msg = fetch_box_office_data(api_key, target_date_str)
-
-    # 에러가 발생한 경우 안내 메시지 출력
-    if error_msg:
-        st.error(f"🚨 데이터를 불러올 수 없습니다.\n\n**확인 사항:** {error_msg}")
-        return
-
-    # 4. 데이터프레임 변환 및 숫자형 데이터 타입 변환
-    df = pd.DataFrame(movie_list)
-
-    # 문자열로 들어오는 숫자 데이터를 정수형(int)으로 변환
-    numeric_columns = ["rank", "audiCnt", "audiAcc", "scrnCnt"]
-    for col in numeric_columns:
-        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
-
-    # 5. 1위 영화 지표 카드 (Metrics)
-    top_1 = df.iloc[0]
-    st.markdown("### 🏆 어제의 1위 영화")
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric(label="영화명", value=top_1["movieNm"])
-    col2.metric(label="어제 관객수", value=f"{top_1['audiCnt']:,} 명")
-    col3.metric(label="누적 관객수", value=f"{top_1['audiAcc']:,} 명")
-
-    st.divider()
-
-    # 6. 상위 5편 관객수 막대그래프
-    st.markdown("### 📊 관객수 TOP 5")
-    top_5_df = df.head(5)
-
-    # Streamlit 차트 시각화를 위한 데이터 가공
-    chart_data = top_5_df[["movieNm", "audiCnt"]].set_index("movieNm")
-    chart_data.columns = ["일별 관객수"]
-    st.bar_chart(chart_data)
-
-    st.divider()
-
-    # 7. 전체 TOP 10 데이터 표 (Table)
-    st.markdown("### 📋 박스오피스 전체 순위")
-
-    # 표시할 컬럼 정리 및 이름 변경
-    display_df = df[
-        ["rank", "movieNm", "openDt", "audiCnt", "audiAcc", "scrnCnt"]
-    ].copy()
-    display_df.columns = [
-        "순위",
-        "영화명",
-        "개봉일",
-        "어제 관객수",
-        "누적 관객수",
-        "스크린수",
-    ]
-
-    # 숫자에 쉼표(,) 포맷 적용하여 출력
-    st.dataframe(
-        display_df.style.format(
-            {"어제 관객수": "{:,}", "누적 관객수": "{:,}", "스크린수": "{:,}"}
-        ),
-        use_container_width=True,
-        hide_index=True,
+    st.title("🎬 영화 데이터 그래프 도감 1 - 시간")
+    st.caption(
+        "박스오피스 데이터를 바탕으로 시간에 따른 영화 데이터의 변화를 탐색합니다."
     )
+
+    # 데이터 불러오기
+    try:
+        df = load_data()
+    except Exception as e:
+        st.error(f"데이터를 불러오는 중 오류가 발생했습니다: {e}")
+        return
+
+    st.markdown("---")
+
+    # ==========================================
+    # 구역 1: 특정 영화의 날짜별 일관객 변화
+    # ==========================================
+    st.header("1. 영화별 일일 관객수 추이")
+
+    # 드롭다운 선택을 위한 전체 영화 목록 추출 (영화명 기준 정렬)
+    movie_list = sorted(df["영화명"].dropna().unique())
+
+    # 영화 선택 드롭다운 (기본값 설정)
+    selected_movie = st.selectbox(
+        "조회할 영화를 선택하세요:",
+        options=movie_list,
+        index=0 if movie_list else None,
+    )
+
+    if selected_movie:
+        # 선택한 영화의 데이터만 필터링 후 날짜순 정렬
+        movie_df = df[df["영화명"] == selected_movie].sort_values("날짜")
+
+        # Plotly 선 그래프 생성
+        fig = px.line(
+            movie_df,
+            x="날짜",
+            y="일관객",
+            title=f"'{selected_movie}' 날짜별 일일 관객수 변화",
+            labels={"날짜": "날짜", "일관객": "일일 관객수(명)"},
+            markers=True,  # 데이터 지점에 마커 표시
+        )
+
+        # 마우스오버(Hover) 툴팁 포맷 및 스타일 설정
+        fig.update_traces(
+            hovertemplate="<b>날짜</b>: %{x|%Y-%m-%d}<br><b>일관객수</b>: %{y:,}명<extra></extra>"
+        )
+
+        # 레이아웃 미세 조정
+        fig.update_layout(
+            xaxis_title="날짜",
+            yaxis_title="관객수(명)",
+            hovermode="x unified",
+        )
+
+        # Streamlit에 그래프 출력
+        st.plotly_chart(fig, use_container_width=True)
+
+        # 인사이트 문구 작성 영역 (작성용 템플릿)
+        st.info(
+            "💡 **이 그래프로 알 수 있는 것**\n\n"
+            "여기에 분석 내용을 작성하세요. (예: 개봉 초기에 관객수가 집중되었는지, 주말에 반응이 크게 오르는지 등)"
+        )
+
+    st.markdown("---")
+
+    # ==========================================
+    # 구역 2: 추후 그래프 추가 영역 (예시 구조)
+    # ==========================================
+    st.header("2. [추가 예정] 시간에 따른 그래프 구역")
+    st.text(
+        "이곳에 두 번째 그래프(예: 상위 N개 영화의 누적관객 추이 비교 등)가 추가될 수 있습니다."
+    )
+
+    # st.info("💡 **이 그래프로 알 수 있는 것**\n\n여기에 분석 내용을 작성하세요.")
 
 
 if __name__ == "__main__":
